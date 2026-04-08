@@ -1,0 +1,1606 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Lesson Pipeline Pro</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Font Awesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <!-- UUID generator -->
+  <script src="https://cdn.jsdelivr.net/npm/uuid@8.3.2/dist/umd/uuidv4.min.js"></script>
+  <!-- Dexie.js for IndexedDB -->
+  <script src="https://cdn.jsdelivr.net/npm/dexie@3.2.3/dist/dexie.min.js"></script>
+  <!-- Chart.js for Analytics -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <!-- Confetti -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+  <style>
+    * {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+    
+    :root {
+      --bg-primary: #ffffff;
+      --bg-secondary: #f9fafb;
+      --text-primary: #111827;
+      --text-secondary: #6b7280;
+      --border-color: #e5e7eb;
+      --skeleton-base: #f3f4f6;
+      --skeleton-highlight: #e5e7eb;
+    }
+    
+    .dark {
+      --bg-primary: #1f2937;
+      --bg-secondary: #111827;
+      --text-primary: #f9fafb;
+      --text-secondary: #9ca3af;
+      --border-color: #374151;
+      --skeleton-base: #374151;
+      --skeleton-highlight: #4b5563;
+    }
+    
+    body {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      transition: background 0.3s ease;
+    }
+    
+    body.dark {
+      background: linear-gradient(135deg, #1a1f2e 0%, #2d1f3d 100%);
+    }
+    
+    .long-pressable {
+      -webkit-touch-callout: none;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+    
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+    
+    .fade-in {
+      animation: fadeIn 0.3s ease-in;
+    }
+    
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .slide-down {
+      animation: slideDown 0.3s ease-out;
+    }
+    
+    @keyframes slideDown {
+      from { opacity: 0; transform: translateY(-100%); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .stage-not-started { background: #F3F4F6; color: #4B5563; }
+    .stage-notes-taken { background: #DBEAFE; color: #1E40AF; }
+    .stage-notes-checked { background: #FED7AA; color: #92400E; }
+    .stage-questions-made { background: #E9D5FF; color: #6B21A8; }
+    .stage-done { background: #D1FAE5; color: #065F46; }
+    
+    .dark .stage-not-started { background: #374151; color: #D1D5DB; }
+    .dark .stage-notes-taken { background: #1E3A8A; color: #DBEAFE; }
+    .dark .stage-notes-checked { background: #78350F; color: #FED7AA; }
+    .dark .stage-questions-made { background: #4C1D95; color: #E9D5FF; }
+    .dark .stage-done { background: #064E3B; color: #D1FAE5; }
+    
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    
+    ::-webkit-scrollbar-track {
+      background: #F1F1F1;
+      border-radius: 10px;
+    }
+    
+    ::-webkit-scrollbar-thumb {
+      background: #C7D2FE;
+      border-radius: 10px;
+    }
+    
+    .dark ::-webkit-scrollbar-track {
+      background: #374151;
+    }
+    
+    .dark ::-webkit-scrollbar-thumb {
+      background: #4B5563;
+    }
+    
+    .progress-bar {
+      transition: width 0.3s ease-out;
+    }
+    
+    .modal-backdrop {
+      backdrop-filter: blur(4px);
+      background-color: rgba(0, 0, 0, 0.5);
+    }
+    
+    /* Fixed skeleton styles */
+    .skeleton {
+      background: linear-gradient(90deg, 
+        var(--skeleton-base) 25%, 
+        var(--skeleton-highlight) 50%, 
+        var(--skeleton-base) 75%);
+      background-size: 200% 100%;
+      animation: loading 1.5s infinite;
+    }
+    
+    @keyframes loading {
+      0% { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+    
+    .skeleton-text {
+      height: 1rem;
+      border-radius: 0.25rem;
+    }
+    
+    .skeleton-title {
+      height: 1.5rem;
+      border-radius: 0.375rem;
+      width: 60%;
+    }
+    
+    .skeleton-circle {
+      border-radius: 50%;
+    }
+    
+    .skeleton-card {
+      background: var(--bg-primary);
+      border-radius: 1rem;
+      padding: 1.25rem;
+      margin-bottom: 0.75rem;
+    }
+    
+    .dragging {
+      opacity: 0.5;
+      transform: scale(0.95);
+    }
+    
+    .drag-over {
+      border-top: 3px solid #667eea;
+    }
+    
+    /* Action Sheet */
+    .action-sheet {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: var(--bg-primary);
+      border-top-left-radius: 1.5rem;
+      border-top-right-radius: 1.5rem;
+      padding: 1rem;
+      transform: translateY(100%);
+      transition: transform 0.3s ease-out;
+      z-index: 60;
+    }
+    
+    .action-sheet.show {
+      transform: translateY(0);
+    }
+    
+    .action-sheet-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(4px);
+      opacity: 0;
+      transition: opacity 0.3s;
+      pointer-events: none;
+      z-index: 59;
+    }
+    
+    .action-sheet-backdrop.show {
+      opacity: 1;
+      pointer-events: auto;
+    }
+  </style>
+</head>
+<body>
+  <div id="app" class="max-w-md mx-auto relative"></div>
+
+  <script>
+    (function(){
+      "use strict";
+
+      // -------------------- ENUMS & CONSTANTS --------------------
+      const LessonStage = {
+        NOT_STARTED: 'NOT_STARTED',
+        NOTES_TAKEN: 'NOTES_TAKEN',
+        NOTES_CHECKED: 'NOTES_CHECKED',
+        QUESTIONS_MADE: 'QUESTIONS_MADE',
+        DONE: 'DONE'
+      };
+
+      const StageConfig = {
+        [LessonStage.NOT_STARTED]: {
+          label: 'Not Started',
+          icon: 'fa-circle',
+          color: 'stage-not-started',
+          bgGradient: 'from-gray-50 to-gray-100'
+        },
+        [LessonStage.NOTES_TAKEN]: {
+          label: 'Notes Taken',
+          icon: 'fa-pencil',
+          color: 'stage-notes-taken',
+          bgGradient: 'from-blue-50 to-blue-100'
+        },
+        [LessonStage.NOTES_CHECKED]: {
+          label: 'Notes Checked',
+          icon: 'fa-check-double',
+          color: 'stage-notes-checked',
+          bgGradient: 'from-orange-50 to-orange-100'
+        },
+        [LessonStage.QUESTIONS_MADE]: {
+          label: 'Questions Made',
+          icon: 'fa-question-circle',
+          color: 'stage-questions-made',
+          bgGradient: 'from-purple-50 to-purple-100'
+        },
+        [LessonStage.DONE]: {
+          label: 'Done',
+          icon: 'fa-check-circle',
+          color: 'stage-done',
+          bgGradient: 'from-green-50 to-green-100'
+        }
+      };
+
+      const Achievements = [
+        { id: 'first_course', name: 'First Steps', description: 'Create your first course', icon: 'fa-flag', condition: (stats) => stats.totalCourses >= 1 },
+        { id: 'first_complete', name: 'First Victory', description: 'Complete your first lesson', icon: 'fa-trophy', condition: (stats) => stats.totalCompleted >= 1 },
+        { id: 'ten_lessons', name: 'Getting Started', description: 'Complete 10 lessons', icon: 'fa-star', condition: (stats) => stats.totalCompleted >= 10 },
+        { id: 'fifty_lessons', name: 'Half Century', description: 'Complete 50 lessons', icon: 'fa-medal', condition: (stats) => stats.totalCompleted >= 50 },
+        { id: 'hundred_lessons', name: 'Centurion', description: 'Complete 100 lessons', icon: 'fa-crown', condition: (stats) => stats.totalCompleted >= 100 },
+        { id: 'course_master', name: 'Course Master', description: 'Complete an entire course', icon: 'fa-graduation-cap', condition: (stats) => stats.coursesCompleted >= 1 },
+        { id: 'three_day_streak', name: 'Consistency', description: '3 day streak', icon: 'fa-fire', condition: (stats) => stats.currentStreak >= 3 },
+        { id: 'seven_day_streak', name: 'On Fire', description: '7 day streak', icon: 'fa-fire-flame-curved', condition: (stats) => stats.currentStreak >= 7 },
+        { id: 'dark_mode', name: 'Night Owl', description: 'Enable dark mode', icon: 'fa-moon', condition: (stats) => stats.darkModeUsed },
+      ];
+
+      // -------------------- INDEXEDDB SETUP --------------------
+      const db = new Dexie('LessonPipelineDB');
+      db.version(1).stores({
+        courses: 'id, createdAt, order',
+        lessons: 'id, courseId, stage, lessonNumber',
+        settings: 'key',
+        analytics: 'date',
+        achievements: 'id'
+      });
+
+      // -------------------- GLOBAL STATE --------------------
+      let appData = { courses: [], lessons: [] };
+      let settings = { darkMode: false, notifications: true };
+      let analytics = { sessions: [], streaks: { current: 0, lastActive: null } };
+      let unlockedAchievements = [];
+      let currentView = 'list';
+      let currentCourseId = null;
+      let detailFilter = 'ALL';
+      let searchQuery = '';
+      let isLoading = true;
+      let undoStack = [];
+      let dragState = { dragging: null, over: null };
+
+      // -------------------- INITIALIZATION --------------------
+      async function init() {
+        await loadFromIndexedDB();
+        applyTheme();
+        
+        // Simulate loading for smooth transition
+        setTimeout(() => {
+          isLoading = false;
+          render();
+          checkAchievements();
+        }, 500);
+        
+        await requestNotificationPermission();
+        
+        // Service Worker registration
+        if ('serviceWorker' in navigator) {
+          try {
+            await navigator.serviceWorker.register('/sw.js');
+            console.log('Service Worker registered');
+          } catch (err) {
+            console.log('Service Worker registration failed:', err);
+          }
+        }
+      }
+
+      async function loadFromIndexedDB() {
+        try {
+          const courses = await db.courses.toArray();
+          const lessons = await db.lessons.toArray();
+          const settingsData = await db.settings.get('app_settings');
+          const analyticsData = await db.analytics.toArray();
+          const achievements = await db.achievements.toArray();
+          
+          appData = { courses, lessons };
+          settings = settingsData?.value || { darkMode: false, notifications: true };
+          unlockedAchievements = achievements.map(a => a.id);
+          
+          if (analyticsData.length > 0) {
+            analytics = {
+              sessions: analyticsData,
+              streaks: calculateStreak(analyticsData)
+            };
+          }
+        } catch (err) {
+          console.error('Failed to load from IndexedDB:', err);
+          // Initialize with empty data
+          appData = { courses: [], lessons: [] };
+        }
+      }
+
+      async function saveToIndexedDB() {
+        try {
+          await db.transaction('rw', db.courses, db.lessons, db.settings, db.analytics, db.achievements, async () => {
+            await db.courses.clear();
+            await db.lessons.clear();
+            if (appData.courses.length > 0) await db.courses.bulkAdd(appData.courses);
+            if (appData.lessons.length > 0) await db.lessons.bulkAdd(appData.lessons);
+            await db.settings.put({ key: 'app_settings', value: settings });
+            
+            // Record today's session
+            const today = new Date().toISOString().split('T')[0];
+            const existing = await db.analytics.get(today);
+            if (existing) {
+              existing.actions += 1;
+              await db.analytics.put(existing);
+            } else {
+              await db.analytics.put({ date: today, actions: 1, completed: 0 });
+            }
+          });
+        } catch (err) {
+          console.error('Failed to save to IndexedDB:', err);
+        }
+      }
+
+      // -------------------- ANALYTICS & ACHIEVEMENTS --------------------
+      function calculateStreak(sessions) {
+        if (!sessions || sessions.length === 0) return { current: 0, lastActive: null };
+        const dates = sessions.map(s => s.date).sort().reverse();
+        let streak = 0;
+        let lastDate = new Date();
+        
+        for (const dateStr of dates) {
+          const date = new Date(dateStr);
+          const diff = Math.floor((lastDate - date) / (1000 * 60 * 60 * 24));
+          if (diff <= 1) {
+            streak++;
+            lastDate = date;
+          } else {
+            break;
+          }
+        }
+        return { current: streak, lastActive: dates[0] };
+      }
+
+      async function checkAchievements() {
+        const stats = await calculateStats();
+        const newAchievements = [];
+        
+        for (const achievement of Achievements) {
+          if (!unlockedAchievements.includes(achievement.id) && achievement.condition(stats)) {
+            unlockedAchievements.push(achievement.id);
+            newAchievements.push(achievement);
+            await db.achievements.put({ id: achievement.id, unlockedAt: Date.now() });
+          }
+        }
+        
+        if (newAchievements.length > 0) {
+          newAchievements.forEach(achievement => {
+            showToast(`🏆 Achievement Unlocked: ${achievement.name}!`, 'achievement');
+          });
+          confetti({
+            particleCount: 100,
+            spread: 70,
+            origin: { y: 0.6 }
+          });
+        }
+      }
+
+      async function calculateStats() {
+        const totalCourses = appData.courses.length;
+        const totalCompleted = appData.lessons.filter(l => l.stage === LessonStage.DONE).length;
+        const coursesCompleted = appData.courses.filter(c => {
+          const lessons = appData.lessons.filter(l => l.courseId === c.id);
+          return lessons.length > 0 && lessons.every(l => l.stage === LessonStage.DONE);
+        }).length;
+        
+        return {
+          totalCourses,
+          totalCompleted,
+          coursesCompleted,
+          currentStreak: analytics.streaks.current || 0,
+          darkModeUsed: settings.darkMode
+        };
+      }
+
+      // -------------------- NOTIFICATIONS --------------------
+      async function requestNotificationPermission() {
+        if (!('Notification' in window)) return false;
+        if (Notification.permission === 'granted') return true;
+        const permission = await Notification.requestPermission();
+        return permission === 'granted';
+      }
+
+      function updateNotificationForCourse(course) {
+        if (!('Notification' in window) || Notification.permission !== 'granted' || !settings.notifications) return;
+        
+        const completed = appData.lessons.filter(
+          l => l.courseId === course.id && l.stage === LessonStage.DONE
+        ).length;
+        const total = course.totalLessons;
+        const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
+        
+        const title = `📚 ${course.name}`;
+        const options = {
+          body: `${completed}/${total} lessons complete (${percent}%)`,
+          icon: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"%3E%3Cdefs%3E%3ClinearGradient id="g" x1="0%25" y1="0%25" x2="100%25" y2="100%25"%3E%3Cstop offset="0%25" stop-color="%23667EEA"/%3E%3Cstop offset="100%25" stop-color="%23764BA2"/%3E%3C/linearGradient%3E%3C/defs%3E%3Ccircle cx="50" cy="50" r="45" fill="url(%23g)"/%3E%3Ctext x="50" y="70" font-size="45" text-anchor="middle" fill="white" font-family="Arial"%3E📚%3C/text%3E%3C/svg%3E',
+          tag: `course-${course.id}`,
+          requireInteraction: true,
+          silent: true,
+          renotify: true
+        };
+        new Notification(title, options);
+      }
+
+      // -------------------- UTILS --------------------
+      function generateId() {
+        return uuidv4();
+      }
+
+      function getNextStage(currentStage) {
+        const order = Object.values(LessonStage);
+        const idx = order.indexOf(currentStage);
+        return idx < order.length - 1 ? order[idx + 1] : currentStage;
+      }
+
+      function escapeHtml(text) {
+        if (!text) return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+      }
+
+      function showToast(message, type = 'info') {
+        const toast = document.createElement('div');
+        toast.className = `fixed top-4 left-1/2 transform -translate-x-1/2 px-4 py-3 rounded-xl shadow-lg text-white z-50 slide-down max-w-[90%] ${
+          type === 'success' ? 'bg-green-500' :
+          type === 'error' ? 'bg-red-500' :
+          type === 'achievement' ? 'bg-gradient-to-r from-yellow-500 to-orange-500' :
+          'bg-indigo-600'
+        }`;
+        toast.innerHTML = `<div class="flex items-center gap-2">${message}</div>`;
+        document.body.appendChild(toast);
+        setTimeout(() => toast.remove(), 3000);
+      }
+
+      function applyTheme() {
+        if (settings.darkMode) {
+          document.body.classList.add('dark');
+        } else {
+          document.body.classList.remove('dark');
+        }
+      }
+
+      function toggleDarkMode() {
+        settings.darkMode = !settings.darkMode;
+        applyTheme();
+        saveToIndexedDB();
+        checkAchievements();
+        render();
+        showToast(settings.darkMode ? '🌙 Dark mode enabled' : '☀️ Light mode enabled', 'info');
+      }
+
+      // -------------------- ACTIONS WITH UNDO --------------------
+      function pushToUndoStack(action) {
+        undoStack.push(action);
+        if (undoStack.length > 10) undoStack.shift();
+      }
+
+      function undo() {
+        const action = undoStack.pop();
+        if (action) {
+          action.undo();
+          saveToIndexedDB();
+          render();
+          showToast('Action undone', 'info');
+        }
+      }
+
+      function addCourse(name, totalLessons) {
+        const courseId = generateId();
+        const newCourse = {
+          id: courseId,
+          name: name.trim(),
+          totalLessons: parseInt(totalLessons, 10),
+          createdAt: Date.now(),
+          order: appData.courses.length
+        };
+        
+        const newLessons = [];
+        for (let i = 1; i <= newCourse.totalLessons; i++) {
+          newLessons.push({
+            id: generateId(),
+            courseId: courseId,
+            lessonNumber: i,
+            stage: LessonStage.NOT_STARTED
+          });
+        }
+        
+        appData.courses.push(newCourse);
+        appData.lessons.push(...newLessons);
+        
+        pushToUndoStack({
+          undo: () => {
+            appData.courses = appData.courses.filter(c => c.id !== courseId);
+            appData.lessons = appData.lessons.filter(l => l.courseId !== courseId);
+          }
+        });
+        
+        saveToIndexedDB();
+        checkAchievements();
+        updateNotificationForCourse(newCourse);
+        render();
+        showToast(`✨ Course "${name}" created!`, 'success');
+      }
+
+      function deleteCourse(courseId) {
+        const course = appData.courses.find(c => c.id === courseId);
+        const lessons = appData.lessons.filter(l => l.courseId === courseId);
+        
+        appData.courses = appData.courses.filter(c => c.id !== courseId);
+        appData.lessons = appData.lessons.filter(l => l.courseId !== courseId);
+        
+        pushToUndoStack({
+          undo: () => {
+            appData.courses.push(course);
+            appData.lessons.push(...lessons);
+          }
+        });
+        
+        saveToIndexedDB();
+        
+        if (currentCourseId === courseId) {
+          currentView = 'list';
+          currentCourseId = null;
+        }
+        
+        render();
+        showToast('Course deleted', 'info');
+      }
+
+      function editCourse(courseId, newName, newTotal) {
+        const course = appData.courses.find(c => c.id === courseId);
+        const oldName = course.name;
+        const oldTotal = course.totalLessons;
+        const deletedLessons = [];
+        
+        course.name = newName;
+        course.totalLessons = newTotal;
+        
+        // Adjust lessons if total changed
+        if (newTotal > oldTotal) {
+          for (let i = oldTotal + 1; i <= newTotal; i++) {
+            appData.lessons.push({
+              id: generateId(),
+              courseId: courseId,
+              lessonNumber: i,
+              stage: LessonStage.NOT_STARTED
+            });
+          }
+        } else if (newTotal < oldTotal) {
+          const toDelete = appData.lessons.filter(l => l.courseId === courseId && l.lessonNumber > newTotal);
+          deletedLessons.push(...toDelete);
+          appData.lessons = appData.lessons.filter(l => !(l.courseId === courseId && l.lessonNumber > newTotal));
+        }
+        
+        pushToUndoStack({
+          undo: () => {
+            course.name = oldName;
+            course.totalLessons = oldTotal;
+            if (deletedLessons.length > 0) {
+              appData.lessons.push(...deletedLessons);
+            }
+          }
+        });
+        
+        saveToIndexedDB();
+        updateNotificationForCourse(course);
+        render();
+        showToast('Course updated', 'success');
+      }
+
+      function resetCourse(courseId) {
+        const lessons = appData.lessons.filter(l => l.courseId === courseId);
+        const oldStages = lessons.map(l => ({ id: l.id, stage: l.stage }));
+        
+        lessons.forEach(l => l.stage = LessonStage.NOT_STARTED);
+        
+        pushToUndoStack({
+          undo: () => {
+            oldStages.forEach(({ id, stage }) => {
+              const lesson = appData.lessons.find(l => l.id === id);
+              if (lesson) lesson.stage = stage;
+            });
+          }
+        });
+        
+        saveToIndexedDB();
+        const course = appData.courses.find(c => c.id === courseId);
+        updateNotificationForCourse(course);
+        render();
+        showToast('Course reset', 'info');
+      }
+
+      function advanceLesson(lessonId) {
+        const lesson = appData.lessons.find(l => l.id === lessonId);
+        if (!lesson || lesson.stage === LessonStage.DONE) return;
+        
+        const oldStage = lesson.stage;
+        lesson.stage = getNextStage(lesson.stage);
+        
+        pushToUndoStack({
+          undo: () => { lesson.stage = oldStage; }
+        });
+        
+        saveToIndexedDB();
+        checkAchievements();
+        
+        const course = appData.courses.find(c => c.id === lesson.courseId);
+        updateNotificationForCourse(course);
+        
+        // Check if course completed
+        const courseLessons = appData.lessons.filter(l => l.courseId === course.id);
+        const allDone = courseLessons.every(l => l.stage === LessonStage.DONE);
+        if (allDone) {
+          confetti({
+            particleCount: 200,
+            spread: 100,
+            origin: { y: 0.6 }
+          });
+          showToast(`🎉 Course "${course.name}" completed!`, 'achievement');
+        }
+        
+        render();
+      }
+
+      function setLessonStage(lessonId, newStage) {
+        const lesson = appData.lessons.find(l => l.id === lessonId);
+        if (!lesson) return;
+        
+        const oldStage = lesson.stage;
+        lesson.stage = newStage;
+        
+        pushToUndoStack({
+          undo: () => { lesson.stage = oldStage; }
+        });
+        
+        saveToIndexedDB();
+        checkAchievements();
+        
+        const course = appData.courses.find(c => c.id === lesson.courseId);
+        updateNotificationForCourse(course);
+        render();
+      }
+
+      function reorderCourses(draggedId, targetId) {
+        const draggedIndex = appData.courses.findIndex(c => c.id === draggedId);
+        const targetIndex = appData.courses.findIndex(c => c.id === targetId);
+        
+        if (draggedIndex === -1 || targetIndex === -1) return;
+        
+        const [draggedCourse] = appData.courses.splice(draggedIndex, 1);
+        appData.courses.splice(targetIndex, 0, draggedCourse);
+        
+        // Update order property
+        appData.courses.forEach((c, i) => c.order = i);
+        
+        saveToIndexedDB();
+        render();
+      }
+
+      // -------------------- EXPORT/IMPORT --------------------
+      function exportData() {
+        const exportData = {
+          version: 2,
+          exportDate: new Date().toISOString(),
+          data: appData,
+          settings: settings,
+          achievements: unlockedAchievements
+        };
+        
+        const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `lesson-pipeline-backup-${new Date().toISOString().split('T')[0]}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+        
+        showToast('📁 Data exported successfully!', 'success');
+      }
+
+      async function importData(file) {
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+          try {
+            const imported = JSON.parse(e.target.result);
+            
+            if (imported.version && imported.data) {
+              appData = imported.data;
+              settings = imported.settings || { darkMode: false, notifications: true };
+              unlockedAchievements = imported.achievements || [];
+              
+              await saveToIndexedDB();
+              applyTheme();
+              render();
+              showToast('📁 Data imported successfully!', 'success');
+            }
+          } catch(err) {
+            showToast('❌ Invalid backup file', 'error');
+          }
+        };
+        reader.readAsText(file);
+      }
+
+      // -------------------- RENDERING --------------------
+      const appContainer = document.getElementById('app');
+
+      function render() {
+        if (isLoading) {
+          renderSkeleton();
+          return;
+        }
+        
+        if (currentView === 'list') {
+          renderCourseList();
+        } else if (currentView === 'detail' && currentCourseId) {
+          renderCourseDetail();
+        } else if (currentView === 'analytics') {
+          renderAnalytics();
+        } else if (currentView === 'achievements') {
+          renderAchievements();
+        } else if (currentView === 'settings') {
+          renderSettings();
+        }
+      }
+
+      function renderSkeleton() {
+        const isDark = settings.darkMode ? 'dark' : '';
+        appContainer.innerHTML = `
+          <div class="min-h-screen flex flex-col ${isDark}">
+            <header class="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-5 py-6 shadow-lg">
+              <div class="flex items-center justify-between">
+                <div>
+                  <div class="skeleton skeleton-title bg-white/20"></div>
+                  <div class="skeleton skeleton-text w-24 mt-2 bg-white/20"></div>
+                </div>
+                <div class="skeleton w-12 h-12 skeleton-circle bg-white/20"></div>
+              </div>
+            </header>
+            <main class="flex-1 bg-gray-50 dark:bg-gray-900 px-4 py-5">
+              <div class="space-y-3">
+                ${[1,2,3].map(() => `
+                  <div class="skeleton-card bg-white dark:bg-gray-800">
+                    <div class="flex items-start justify-between mb-3">
+                      <div class="flex-1">
+                        <div class="skeleton skeleton-text w-32 mb-2"></div>
+                        <div class="skeleton skeleton-text w-24"></div>
+                      </div>
+                      <div class="skeleton w-12 h-12 skeleton-circle"></div>
+                    </div>
+                    <div class="mt-4">
+                      <div class="skeleton skeleton-text w-full mb-2"></div>
+                      <div class="skeleton h-2 w-full rounded-full"></div>
+                    </div>
+                  </div>
+                `).join('')}
+              </div>
+            </main>
+          </div>
+        `;
+      }
+
+      function renderCourseList() {
+        const courses = appData.courses.sort((a, b) => (a.order || 0) - (b.order || 0));
+        
+        let html = `
+          <div class="min-h-screen flex flex-col ${settings.darkMode ? 'dark' : ''}">
+            <header class="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-5 py-6 shadow-lg">
+              <div class="flex items-center justify-between">
+                <div>
+                  <h1 class="text-2xl font-bold mb-1">Lesson Pipeline</h1>
+                  <p class="text-indigo-100 text-sm">${courses.length} course${courses.length !== 1 ? 's' : ''}</p>
+                </div>
+                <div class="flex gap-2">
+                  <button onclick="window.toggleDarkMode()" class="bg-white/20 backdrop-blur rounded-full p-3 hover:bg-white/30 transition">
+                    <i class="fas ${settings.darkMode ? 'fa-sun' : 'fa-moon'} text-xl"></i>
+                  </button>
+                  <button onclick="window.showMenu()" class="bg-white/20 backdrop-blur rounded-full p-3 hover:bg-white/30 transition">
+                    <i class="fas fa-bars text-xl"></i>
+                  </button>
+                </div>
+              </div>
+            </header>
+            
+            <main class="flex-1 bg-gray-50 dark:bg-gray-900 px-4 py-5">
+        `;
+        
+        if (courses.length === 0) {
+          html += `
+            <div class="flex flex-col items-center justify-center py-16 fade-in">
+              <div class="w-32 h-32 bg-gradient-to-br from-indigo-100 to-purple-100 dark:from-indigo-900 dark:to-purple-900 rounded-full flex items-center justify-center mb-4">
+                <i class="fas fa-book-open text-5xl text-indigo-600 dark:text-indigo-400"></i>
+              </div>
+              <h3 class="text-xl font-semibold text-gray-800 dark:text-white mb-2">No courses yet</h3>
+              <p class="text-gray-500 dark:text-gray-400 text-center mb-6">Tap the + button to start tracking</p>
+            </div>
+          `;
+        } else {
+          html += `<div class="space-y-3" id="course-list-container">`;
+          courses.forEach(course => {
+            const lessons = appData.lessons.filter(l => l.courseId === course.id);
+            const completed = lessons.filter(l => l.stage === LessonStage.DONE).length;
+            const total = course.totalLessons;
+            const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
+            
+            let progressColor = 'bg-indigo-500';
+            if (percent >= 75) progressColor = 'bg-green-500';
+            else if (percent >= 50) progressColor = 'bg-blue-500';
+            else if (percent >= 25) progressColor = 'bg-yellow-500';
+            
+            html += `
+              <div class="course-card bg-white dark:bg-gray-800 rounded-2xl p-5 shadow-sm border border-gray-100 dark:border-gray-700 cursor-pointer long-pressable hover:shadow-md transition-all duration-200 fade-in"
+                   data-course-id="${course.id}"
+                   draggable="true">
+                <div class="flex items-start justify-between mb-3">
+                  <div class="flex-1">
+                    <h3 class="text-lg font-semibold text-gray-800 dark:text-white mb-1">${escapeHtml(course.name)}</h3>
+                    <div class="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+                      <i class="fas fa-layer-group text-xs"></i>
+                      <span>${total} lessons</span>
+                    </div>
+                  </div>
+                  <div class="bg-gradient-to-br ${percent === 100 ? 'from-green-100 to-green-200 dark:from-green-900 dark:to-green-800' : 'from-indigo-100 to-purple-100 dark:from-indigo-900 dark:to-purple-900'} rounded-full p-3">
+                    <i class="fas ${percent === 100 ? 'fa-trophy text-green-600 dark:text-green-400' : 'fa-arrow-right text-indigo-600 dark:text-indigo-400'}"></i>
+                  </div>
+                </div>
+                
+                <div class="mt-4">
+                  <div class="flex justify-between text-sm mb-2">
+                    <span class="font-medium text-gray-700 dark:text-gray-300">Progress</span>
+                    <span class="font-semibold ${percent === 100 ? 'text-green-600 dark:text-green-400' : 'text-indigo-600 dark:text-indigo-400'}">${percent}%</span>
+                  </div>
+                  <div class="relative">
+                    <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5 overflow-hidden">
+                      <div class="progress-bar ${progressColor} h-2.5 rounded-full" style="width: ${percent}%"></div>
+                    </div>
+                  </div>
+                  <div class="flex justify-between items-center mt-3">
+                    <div class="flex items-center gap-2">
+                      <div class="w-2 h-2 rounded-full ${progressColor}"></div>
+                      <span class="text-sm text-gray-600 dark:text-gray-400">${completed} / ${total} done</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            `;
+          });
+          html += `</div>`;
+        }
+        
+        html += `
+            </main>
+            
+            <div class="fixed bottom-6 right-6">
+              <button id="add-course-fab" class="bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-2xl w-14 h-14 flex items-center justify-center shadow-xl hover:shadow-2xl transform hover:scale-105 transition-all duration-200">
+                <i class="fas fa-plus text-xl"></i>
+              </button>
+            </div>
+            
+            ${undoStack.length > 0 ? `
+              <div class="fixed bottom-24 left-4 right-4 flex justify-center">
+                <button onclick="window.undo()" class="bg-gray-800 dark:bg-gray-700 text-white px-6 py-3 rounded-full shadow-lg flex items-center gap-2 hover:bg-gray-900 transition">
+                  <i class="fas fa-undo"></i>
+                  <span>Undo</span>
+                </button>
+              </div>
+            ` : ''}
+            
+            ${renderModals()}
+          </div>
+        `;
+        
+        appContainer.innerHTML = html;
+        attachCourseListEvents();
+        setupDragAndDrop();
+      }
+
+      function renderModals() {
+        return `
+          <!-- Menu Modal -->
+          <div id="menu-modal" class="fixed inset-0 modal-backdrop flex items-center justify-center p-4 hidden z-50" onclick="if(event.target===this) window.closeMenu()">
+            <div class="bg-white dark:bg-gray-800 rounded-3xl max-w-md w-full p-6 shadow-2xl">
+              <h2 class="text-xl font-bold text-gray-800 dark:text-white mb-4">Menu</h2>
+              <div class="space-y-2">
+                <button onclick="window.navigateTo('analytics')" class="w-full text-left px-4 py-3 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-3">
+                  <i class="fas fa-chart-bar text-indigo-600 w-6"></i>
+                  <span class="text-gray-700 dark:text-gray-300">Analytics</span>
+                </button>
+                <button onclick="window.navigateTo('achievements')" class="w-full text-left px-4 py-3 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-3">
+                  <i class="fas fa-trophy text-yellow-600 w-6"></i>
+                  <span class="text-gray-700 dark:text-gray-300">Achievements</span>
+                </button>
+                <button onclick="window.navigateTo('settings')" class="w-full text-left px-4 py-3 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-3">
+                  <i class="fas fa-cog text-gray-600 w-6"></i>
+                  <span class="text-gray-700 dark:text-gray-300">Settings</span>
+                </button>
+                <hr class="my-2 dark:border-gray-700">
+                <button onclick="window.closeMenu()" class="w-full px-4 py-3 bg-gray-100 dark:bg-gray-700 rounded-xl text-gray-700 dark:text-gray-300 font-medium">
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Add Course Modal -->
+          <div id="add-course-modal" class="fixed inset-0 modal-backdrop flex items-center justify-center p-4 hidden z-50" onclick="if(event.target===this) window.closeModal('add-course-modal')">
+            <div class="bg-white dark:bg-gray-800 rounded-3xl max-w-md w-full p-6 shadow-2xl">
+              <div class="flex items-center justify-between mb-5">
+                <h2 class="text-xl font-bold text-gray-800 dark:text-white">Create New Course</h2>
+                <button onclick="window.closeModal('add-course-modal')" class="w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center">
+                  <i class="fas fa-times text-gray-500"></i>
+                </button>
+              </div>
+              <form id="add-course-form">
+                <div class="mb-5">
+                  <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Course Name</label>
+                  <input type="text" id="course-name" required 
+                         class="w-full px-4 py-3 border border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                         placeholder="e.g., Advanced Mathematics">
+                </div>
+                <div class="mb-6">
+                  <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Total Lessons</label>
+                  <input type="number" id="total-lessons" min="1" required 
+                         class="w-full px-4 py-3 border border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                         placeholder="e.g., 215">
+                </div>
+                <div class="flex gap-3">
+                  <button type="button" onclick="window.closeModal('add-course-modal')" 
+                          class="flex-1 px-4 py-3 border border-gray-200 dark:border-gray-600 rounded-xl text-gray-700 dark:text-gray-300 font-medium">
+                    Cancel
+                  </button>
+                  <button type="submit" 
+                          class="flex-1 px-4 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl font-medium">
+                    Create Course
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+          
+          <!-- Edit Course Modal -->
+          <div id="edit-course-modal" class="fixed inset-0 modal-backdrop flex items-center justify-center p-4 hidden z-50" onclick="if(event.target===this) window.closeModal('edit-course-modal')">
+            <div class="bg-white dark:bg-gray-800 rounded-3xl max-w-md w-full p-6 shadow-2xl">
+              <h2 class="text-xl font-bold text-gray-800 dark:text-white mb-4">Edit Course</h2>
+              <form id="edit-course-form">
+                <input type="hidden" id="edit-course-id">
+                <div class="mb-5">
+                  <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Course Name</label>
+                  <input type="text" id="edit-course-name" required 
+                         class="w-full px-4 py-3 border border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-xl">
+                </div>
+                <div class="mb-6">
+                  <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Total Lessons</label>
+                  <input type="number" id="edit-total-lessons" min="1" required 
+                         class="w-full px-4 py-3 border border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-xl">
+                  <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">⚠️ Reducing lessons will delete excess lessons</p>
+                </div>
+                <div class="flex gap-3">
+                  <button type="button" onclick="window.closeModal('edit-course-modal')" 
+                          class="flex-1 px-4 py-3 border border-gray-200 dark:border-gray-600 rounded-xl text-gray-700 dark:text-gray-300 font-medium">
+                    Cancel
+                  </button>
+                  <button type="submit" 
+                          class="flex-1 px-4 py-3 bg-indigo-600 text-white rounded-xl font-medium">
+                    Save Changes
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+          
+          <!-- Action Sheet Backdrop -->
+          <div id="action-sheet-backdrop" class="action-sheet-backdrop" onclick="window.hideActionSheet()"></div>
+          
+          <!-- Action Sheet -->
+          <div id="action-sheet" class="action-sheet bg-white dark:bg-gray-800">
+            <div class="w-12 h-1 bg-gray-300 dark:bg-gray-600 rounded-full mx-auto mb-4"></div>
+            <div id="action-sheet-content" class="space-y-2"></div>
+            <button onclick="window.hideActionSheet()" class="w-full px-4 py-3 bg-gray-100 dark:bg-gray-700 rounded-xl text-gray-700 dark:text-gray-300 font-medium mt-4">
+              Cancel
+            </button>
+          </div>
+        `;
+      }
+
+      function renderCourseDetail() {
+        const course = appData.courses.find(c => c.id === currentCourseId);
+        if (!course) {
+          currentView = 'list';
+          render();
+          return;
+        }
+        
+        const lessons = appData.lessons.filter(l => l.courseId === course.id).sort((a, b) => a.lessonNumber - b.lessonNumber);
+        const completed = lessons.filter(l => l.stage === LessonStage.DONE).length;
+        const total = course.totalLessons;
+        const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
+        
+        let filteredLessons = lessons;
+        if (detailFilter !== 'ALL') {
+          filteredLessons = lessons.filter(l => l.stage === detailFilter);
+        }
+        if (searchQuery) {
+          filteredLessons = filteredLessons.filter(l => 
+            l.lessonNumber.toString().includes(searchQuery)
+          );
+        }
+        
+        let html = `
+          <div class="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-900">
+            <header class="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-4 py-4 shadow-lg">
+              <div class="flex items-center gap-3">
+                <button onclick="window.goBack()" class="w-10 h-10 rounded-full bg-white/20 backdrop-blur flex items-center justify-center">
+                  <i class="fas fa-arrow-left"></i>
+                </button>
+                <div class="flex-1">
+                  <h1 class="text-xl font-bold truncate">${escapeHtml(course.name)}</h1>
+                  <p class="text-indigo-100 text-sm">${total} lessons</p>
+                </div>
+                <button onclick="window.showCourseMenu('${course.id}')" class="w-10 h-10 rounded-full bg-white/20 backdrop-blur flex items-center justify-center">
+                  <i class="fas fa-ellipsis-v"></i>
+                </button>
+              </div>
+            </header>
+            
+            <div class="bg-white dark:bg-gray-800 mx-4 mt-4 rounded-2xl p-5 shadow-sm">
+              <div class="flex items-center justify-between mb-3">
+                <div>
+                  <span class="text-sm font-medium text-gray-500 dark:text-gray-400">Overall Progress</span>
+                  <div class="flex items-baseline gap-2 mt-1">
+                    <span class="text-3xl font-bold ${percent === 100 ? 'text-green-600' : 'text-indigo-600'}">${percent}%</span>
+                  </div>
+                </div>
+                <div class="text-right">
+                  <span class="text-2xl font-semibold text-gray-800 dark:text-white">${completed}</span>
+                  <span class="text-sm text-gray-500 dark:text-gray-400"> / ${total}</span>
+                </div>
+              </div>
+              <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3 overflow-hidden">
+                <div class="progress-bar bg-gradient-to-r ${percent === 100 ? 'from-green-500 to-green-400' : 'from-indigo-500 to-purple-500'} h-3 rounded-full" style="width: ${percent}%"></div>
+              </div>
+            </div>
+            
+            <div class="mt-4 px-4">
+              <div class="relative">
+                <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                <input type="text" id="lesson-search" placeholder="Search lesson number..." value="${escapeHtml(searchQuery)}"
+                       class="w-full pl-10 pr-4 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:text-white">
+                ${searchQuery ? `
+                  <button onclick="window.clearSearch()" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                    <i class="fas fa-times"></i>
+                  </button>
+                ` : ''}
+              </div>
+            </div>
+            
+            <div class="mt-4 px-4">
+              <div class="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
+                ${['ALL', ...Object.values(LessonStage)].map(opt => {
+                  const isActive = (detailFilter === opt);
+                  const config = opt === 'ALL' ? { color: 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300', icon: 'fa-list' } : 
+                                { color: `${StageConfig[opt].color}`, icon: StageConfig[opt].icon };
+                  const activeClass = isActive ? 'ring-2 ring-indigo-500 ring-offset-2 dark:ring-offset-gray-900' : '';
+                  
+                  return `
+                    <button class="filter-chip px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap ${config.color} ${activeClass} flex items-center gap-2"
+                            data-filter="${opt}">
+                      <i class="fas ${config.icon} text-xs"></i>
+                      <span>${opt === 'ALL' ? 'All' : StageConfig[opt].label}</span>
+                    </button>
+                  `;
+                }).join('')}
+              </div>
+            </div>
+            
+            <div class="px-4 mt-3 mb-2">
+              <span class="text-sm font-medium text-gray-600 dark:text-gray-400">
+                ${filteredLessons.length} lesson${filteredLessons.length !== 1 ? 's' : ''}
+              </span>
+            </div>
+            
+            <main class="flex-1 overflow-y-auto px-4 pb-4">
+              <div class="space-y-2">
+        `;
+        
+        if (filteredLessons.length === 0) {
+          html += `
+            <div class="bg-white dark:bg-gray-800 rounded-2xl p-8 text-center">
+              <div class="w-16 h-16 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-3">
+                <i class="fas fa-search text-gray-400 text-2xl"></i>
+              </div>
+              <p class="text-gray-500 dark:text-gray-400 font-medium">No lessons found</p>
+            </div>
+          `;
+        } else {
+          filteredLessons.forEach(lesson => {
+            const stage = lesson.stage;
+            const config = StageConfig[stage];
+            const nextStage = getNextStage(stage);
+            const isDone = stage === LessonStage.DONE;
+            
+            html += `
+              <div class="lesson-item bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700 cursor-pointer long-pressable hover:shadow-md transition-all fade-in"
+                   data-lesson-id="${lesson.id}">
+                <div class="flex items-center justify-between">
+                  <div class="flex items-center gap-3 flex-1">
+                    <div class="w-12 h-12 rounded-full bg-gradient-to-br ${config.bgGradient} flex items-center justify-center">
+                      <span class="font-semibold text-gray-700 dark:text-gray-300">${lesson.lessonNumber}</span>
+                    </div>
+                    <div class="flex-1">
+                      <div class="flex items-center gap-2 mb-1">
+                        <span class="px-2.5 py-1 rounded-full text-xs font-medium ${config.color}">
+                          <i class="fas ${config.icon} mr-1 text-xs"></i>
+                          ${config.label}
+                        </span>
+                      </div>
+                      ${!isDone ? `
+                        <p class="text-xs text-gray-500 dark:text-gray-400">
+                          <i class="fas fa-arrow-right text-indigo-500 mr-1"></i>
+                          Tap to advance to ${StageConfig[nextStage].label}
+                        </p>
+                      ` : `
+                        <p class="text-xs text-green-600 dark:text-green-400">
+                          <i class="fas fa-check-circle mr-1"></i>
+                          Complete
+                        </p>
+                      `}
+                    </div>
+                  </div>
+                  <i class="fas fa-chevron-right text-gray-300 dark:text-gray-600 text-sm"></i>
+                </div>
+              </div>
+            `;
+          });
+        }
+        
+        html += `
+              </div>
+            </main>
+          </div>
+        `;
+        
+        appContainer.innerHTML = html;
+        attachDetailEvents();
+      }
+
+      function renderAnalytics() {
+        const stats = calculateStats();
+        
+        appContainer.innerHTML = `
+          <div class="min-h-screen bg-gray-50 dark:bg-gray-900">
+            <header class="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-4 py-4 shadow-lg">
+              <div class="flex items-center gap-3">
+                <button onclick="window.goBack()" class="w-10 h-10 rounded-full bg-white/20 backdrop-blur flex items-center justify-center">
+                  <i class="fas fa-arrow-left"></i>
+                </button>
+                <h1 class="text-xl font-bold">Analytics</h1>
+              </div>
+            </header>
+            
+            <main class="p-4">
+              <div class="grid grid-cols-2 gap-4 mb-4">
+                <div class="bg-white dark:bg-gray-800 rounded-2xl p-4">
+                  <i class="fas fa-book text-indigo-600 text-2xl mb-2"></i>
+                  <p class="text-2xl font-bold text-gray-800 dark:text-white">${stats.totalCourses}</p>
+                  <p class="text-sm text-gray-500 dark:text-gray-400">Total Courses</p>
+                </div>
+                <div class="bg-white dark:bg-gray-800 rounded-2xl p-4">
+                  <i class="fas fa-check-circle text-green-600 text-2xl mb-2"></i>
+                  <p class="text-2xl font-bold text-gray-800 dark:text-white">${stats.totalCompleted}</p>
+                  <p class="text-sm text-gray-500 dark:text-gray-400">Lessons Done</p>
+                </div>
+                <div class="bg-white dark:bg-gray-800 rounded-2xl p-4">
+                  <i class="fas fa-fire text-orange-600 text-2xl mb-2"></i>
+                  <p class="text-2xl font-bold text-gray-800 dark:text-white">${stats.currentStreak}</p>
+                  <p class="text-sm text-gray-500 dark:text-gray-400">Day Streak</p>
+                </div>
+                <div class="bg-white dark:bg-gray-800 rounded-2xl p-4">
+                  <i class="fas fa-graduation-cap text-purple-600 text-2xl mb-2"></i>
+                  <p class="text-2xl font-bold text-gray-800 dark:text-white">${stats.coursesCompleted}</p>
+                  <p class="text-sm text-gray-500 dark:text-gray-400">Courses Mastered</p>
+                </div>
+              </div>
+            </main>
+          </div>
+        `;
+      }
+
+      function renderAchievements() {
+        const stats = calculateStats();
+        
+        appContainer.innerHTML = `
+          <div class="min-h-screen bg-gray-50 dark:bg-gray-900">
+            <header class="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-4 py-4 shadow-lg">
+              <div class="flex items-center gap-3">
+                <button onclick="window.goBack()" class="w-10 h-10 rounded-full bg-white/20 backdrop-blur flex items-center justify-center">
+                  <i class="fas fa-arrow-left"></i>
+                </button>
+                <h1 class="text-xl font-bold">Achievements</h1>
+              </div>
+            </header>
+            
+            <main class="p-4">
+              <div class="space-y-3">
+                ${Achievements.map(achievement => {
+                  const unlocked = unlockedAchievements.includes(achievement.id);
+                  return `
+                    <div class="bg-white dark:bg-gray-800 rounded-2xl p-4 flex items-center gap-4 ${unlocked ? '' : 'opacity-50'}">
+                      <div class="w-12 h-12 rounded-full ${unlocked ? 'bg-gradient-to-br from-yellow-400 to-orange-500' : 'bg-gray-200 dark:bg-gray-700'} flex items-center justify-center">
+                        <i class="fas ${achievement.icon} ${unlocked ? 'text-white' : 'text-gray-400 dark:text-gray-500'} text-xl"></i>
+                      </div>
+                      <div class="flex-1">
+                        <h3 class="font-semibold text-gray-800 dark:text-white">${achievement.name}</h3>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">${achievement.description}</p>
+                      </div>
+                      ${unlocked ? '<i class="fas fa-check-circle text-green-500 text-xl"></i>' : '<i class="fas fa-lock text-gray-400"></i>'}
+                    </div>
+                  `;
+                }).join('')}
+              </div>
+            </main>
+          </div>
+        `;
+      }
+
+      function renderSettings() {
+        appContainer.innerHTML = `
+          <div class="min-h-screen bg-gray-50 dark:bg-gray-900">
+            <header class="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-4 py-4 shadow-lg">
+              <div class="flex items-center gap-3">
+                <button onclick="window.goBack()" class="w-10 h-10 rounded-full bg-white/20 backdrop-blur flex items-center justify-center">
+                  <i class="fas fa-arrow-left"></i>
+                </button>
+                <h1 class="text-xl font-bold">Settings</h1>
+              </div>
+            </header>
+            
+            <main class="p-4">
+              <div class="bg-white dark:bg-gray-800 rounded-2xl divide-y dark:divide-gray-700">
+                <div class="p-4 flex items-center justify-between">
+                  <div>
+                    <h3 class="font-semibold text-gray-800 dark:text-white">Dark Mode</h3>
+                    <p class="text-sm text-gray-500 dark:text-gray-400">Switch between light and dark theme</p>
+                  </div>
+                  <button onclick="window.toggleDarkMode()" class="relative w-12 h-6 bg-gray-200 dark:bg-gray-700 rounded-full transition-colors">
+                    <div class="absolute w-5 h-5 bg-white rounded-full top-0.5 transition-all ${settings.darkMode ? 'right-0.5' : 'left-0.5'}"></div>
+                  </button>
+                </div>
+                
+                <div class="p-4 flex items-center justify-between">
+                  <div>
+                    <h3 class="font-semibold text-gray-800 dark:text-white">Notifications</h3>
+                    <p class="text-sm text-gray-500 dark:text-gray-400">Show progress notifications</p>
+                  </div>
+                  <button onclick="window.toggleNotifications()" class="relative w-12 h-6 bg-gray-200 dark:bg-gray-700 rounded-full transition-colors">
+                    <div class="absolute w-5 h-5 bg-white rounded-full top-0.5 transition-all ${settings.notifications ? 'right-0.5' : 'left-0.5'}"></div>
+                  </button>
+                </div>
+                
+                <div class="p-4">
+                  <button onclick="window.exportData()" class="w-full text-left flex items-center gap-3 text-gray-700 dark:text-gray-300">
+                    <i class="fas fa-download text-indigo-600 w-6"></i>
+                    <span>Export Data</span>
+                  </button>
+                </div>
+                
+                <div class="p-4">
+                  <label class="w-full text-left flex items-center gap-3 text-gray-700 dark:text-gray-300 cursor-pointer">
+                    <i class="fas fa-upload text-indigo-600 w-6"></i>
+                    <span>Import Data</span>
+                    <input type="file" id="import-file" accept=".json" class="hidden">
+                  </label>
+                </div>
+              </div>
+            </main>
+          </div>
+        `;
+        
+        document.getElementById('import-file')?.addEventListener('change', (e) => {
+          const file = e.target.files[0];
+          if (file) importData(file);
+        });
+      }
+
+      // -------------------- EVENT HANDLERS --------------------
+      function attachCourseListEvents() {
+        document.getElementById('add-course-fab')?.addEventListener('click', () => {
+          document.getElementById('add-course-modal').classList.remove('hidden');
+          document.getElementById('course-name').focus();
+        });
+        
+        document.getElementById('add-course-form')?.addEventListener('submit', (e) => {
+          e.preventDefault();
+          const name = document.getElementById('course-name').value.trim();
+          const total = document.getElementById('total-lessons').value;
+          if (name && total && parseInt(total) > 0) {
+            addCourse(name, total);
+            document.getElementById('add-course-modal').classList.add('hidden');
+            document.getElementById('add-course-form').reset();
+          }
+        });
+        
+        document.querySelectorAll('.course-card').forEach(card => {
+          let pressTimer;
+          
+          card.addEventListener('click', (e) => {
+            if (!dragState.dragging) {
+              currentCourseId = card.dataset.courseId;
+              currentView = 'detail';
+              detailFilter = 'ALL';
+              searchQuery = '';
+              render();
+            }
+          });
+          
+          card.addEventListener('mousedown', () => { 
+            pressTimer = setTimeout(() => showCourseActionSheet(card.dataset.courseId), 500); 
+          });
+          card.addEventListener('mouseup', () => clearTimeout(pressTimer));
+          card.addEventListener('mouseleave', () => clearTimeout(pressTimer));
+          card.addEventListener('touchstart', (e) => { 
+            pressTimer = setTimeout(() => showCourseActionSheet(card.dataset.courseId), 500); 
+          });
+          card.addEventListener('touchend', () => clearTimeout(pressTimer));
+          card.addEventListener('touchmove', () => clearTimeout(pressTimer));
+        });
+      }
+
+      function setupDragAndDrop() {
+        const cards = document.querySelectorAll('.course-card');
+        let draggedElement = null;
+        
+        cards.forEach(card => {
+          card.addEventListener('dragstart', (e) => {
+            draggedElement = card;
+            card.classList.add('dragging');
+            e.dataTransfer.effectAllowed = 'move';
+            dragState.dragging = card.dataset.courseId;
+          });
+          
+          card.addEventListener('dragend', () => {
+            card.classList.remove('dragging');
+            draggedElement = null;
+            dragState.dragging = null;
+            document.querySelectorAll('.course-card').forEach(c => c.classList.remove('drag-over'));
+          });
+          
+          card.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            if (draggedElement !== card) {
+              card.classList.add('drag-over');
+            }
+          });
+          
+          card.addEventListener('dragleave', () => {
+            card.classList.remove('drag-over');
+          });
+          
+          card.addEventListener('drop', (e) => {
+            e.preventDefault();
+            card.classList.remove('drag-over');
+            
+            if (draggedElement && draggedElement !== card) {
+              reorderCourses(draggedElement.dataset.courseId, card.dataset.courseId);
+            }
+          });
+        });
+      }
+
+      function attachDetailEvents() {
+        document.querySelectorAll('.filter-chip').forEach(chip => {
+          chip.addEventListener('click', () => {
+            detailFilter = chip.dataset.filter;
+            render();
+          });
+        });
+        
+        const searchInput = document.getElementById('lesson-search');
+        if (searchInput) {
+          searchInput.addEventListener('input', (e) => {
+            searchQuery = e.target.value;
+            render();
+          });
+          searchInput.focus();
+        }
+        
+        document.querySelectorAll('.lesson-item').forEach(item => {
+          let pressTimer;
+          const lessonId = item.dataset.lessonId;
+          
+          item.addEventListener('click', () => advanceLesson(lessonId));
+          
+          item.addEventListener('mousedown', () => { 
+            pressTimer = setTimeout(() => showStagePicker(lessonId), 500); 
+          });
+          item.addEventListener('mouseup', () => clearTimeout(pressTimer));
+          item.addEventListener('mouseleave', () => clearTimeout(pressTimer));
+          item.addEventListener('touchstart', (e) => { 
+            pressTimer = setTimeout(() => showStagePicker(lessonId), 500); 
+          });
+          item.addEventListener('touchend', () => clearTimeout(pressTimer));
+          item.addEventListener('touchmove', () => clearTimeout(pressTimer));
+        });
+      }
+
+      function showCourseActionSheet(courseId) {
+        const course = appData.courses.find(c => c.id === courseId);
+        if (!course) return;
+        
+        const content = document.getElementById('action-sheet-content');
+        content.innerHTML = `
+          <button onclick="window.editCourse('${courseId}'); window.hideActionSheet()" 
+                  class="w-full text-left px-4 py-3 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-3">
+            <i class="fas fa-edit text-blue-600 w-6"></i>
+            <span class="text-gray-700 dark:text-gray-300">Edit Course</span>
+          </button>
+          <button onclick="window.resetCourse('${courseId}'); window.hideActionSheet()" 
+                  class="w-full text-left px-4 py-3 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-3">
+            <i class="fas fa-undo text-orange-600 w-6"></i>
+            <span class="text-gray-700 dark:text-gray-300">Reset Course</span>
+          </button>
+          <button onclick="window.deleteCourse('${courseId}'); window.hideActionSheet()" 
+                  class="w-full text-left px-4 py-3 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-3">
+            <i class="fas fa-trash text-red-600 w-6"></i>
+            <span class="text-gray-700 dark:text-gray-300">Delete Course</span>
+          </button>
+        `;
+        
+        showActionSheet();
+      }
+
+      function showStagePicker(lessonId) {
+        const lesson = appData.lessons.find(l => l.id === lessonId);
+        if (!lesson) return;
+        
+        const content = document.getElementById('action-sheet-content');
+        content.innerHTML = Object.values(LessonStage).map(stage => {
+          const config = StageConfig[stage];
+          const isCurrent = lesson.stage === stage;
+          return `
+            <button onclick="window.setLessonStage('${lessonId}', '${stage}'); window.hideActionSheet()" 
+                    class="w-full text-left px-4 py-3 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-3 ${isCurrent ? 'bg-gray-100 dark:bg-gray-700' : ''}">
+              <div class="w-8 h-8 rounded-full ${config.color} flex items-center justify-center">
+                <i class="fas ${config.icon} text-xs"></i>
+              </div>
+              <span class="text-gray-700 dark:text-gray-300">${config.label}</span>
+              ${isCurrent ? '<i class="fas fa-check text-green-600 ml-auto"></i>' : ''}
+            </button>
+          `;
+        }).join('');
+        
+        showActionSheet();
+      }
+
+      function showActionSheet() {
+        document.getElementById('action-sheet-backdrop').classList.add('show');
+        document.getElementById('action-sheet').classList.add('show');
+      }
+
+      function hideActionSheet() {
+        document.getElementById('action-sheet-backdrop').classList.remove('show');
+        document.getElementById('action-sheet').classList.remove('show');
+      }
+
+      function showEditCourseModal(courseId) {
+        const course = appData.courses.find(c => c.id === courseId);
+        if (!course) return;
+        
+        document.getElementById('edit-course-id').value = courseId;
+        document.getElementById('edit-course-name').value = course.name;
+        document.getElementById('edit-total-lessons').value = course.totalLessons;
+        document.getElementById('edit-course-modal').classList.remove('hidden');
+        
+        const form = document.getElementById('edit-course-form');
+        form.onsubmit = (e) => {
+          e.preventDefault();
+          const name = document.getElementById('edit-course-name').value.trim();
+          const total = parseInt(document.getElementById('edit-total-lessons').value);
+          if (name && total > 0) {
+            editCourse(courseId, name, total);
+            document.getElementById('edit-course-modal').classList.add('hidden');
+          }
+        };
+      }
+
+      // -------------------- GLOBAL FUNCTIONS --------------------
+      window.toggleDarkMode = toggleDarkMode;
+      window.showMenu = () => document.getElementById('menu-modal')?.classList.remove('hidden');
+      window.closeMenu = () => document.getElementById('menu-modal')?.classList.add('hidden');
+      window.closeModal = (id) => {
+        document.getElementById(id)?.classList.add('hidden');
+        if (id === 'add-course-modal') {
+          document.getElementById('add-course-form')?.reset();
+        }
+      };
+      window.navigateTo = (view) => {
+        currentView = view;
+        window.closeMenu();
+        render();
+      };
+      window.goBack = () => {
+        if (currentView !== 'list') {
+          currentView = 'list';
+          currentCourseId = null;
+          render();
+        }
+      };
+      window.showCourseMenu = (courseId) => showCourseActionSheet(courseId);
+      window.editCourse = (courseId) => {
+        hideActionSheet();
+        showEditCourseModal(courseId);
+      };
+      window.resetCourse = (courseId) => {
+        hideActionSheet();
+        if (confirm('Reset all lessons in this course to "Not Started"?')) {
+          resetCourse(courseId);
+        }
+      };
+      window.deleteCourse = (courseId) => {
+        hideActionSheet();
+        if (confirm('Permanently delete this course and all its lessons?')) {
+          deleteCourse(courseId);
+        }
+      };
+      window.setLessonStage = (lessonId, stage) => {
+        setLessonStage(lessonId, stage);
+        hideActionSheet();
+      };
+      window.undo = undo;
+      window.exportData = exportData;
+      window.toggleNotifications = () => {
+        settings.notifications = !settings.notifications;
+        saveToIndexedDB();
+        render();
+        showToast(settings.notifications ? '🔔 Notifications enabled' : '🔕 Notifications disabled', 'info');
+      };
+      window.clearSearch = () => {
+        searchQuery = '';
+        render();
+      };
+      window.hideActionSheet = hideActionSheet;
+
+      // Start the app
+      init();
+    })();
+  </script>
+</body>
+</html>
